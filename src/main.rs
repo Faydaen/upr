@@ -1,10 +1,13 @@
+mod create_meta;
+
 use std::fs;
-use std::path::{Path, PathBuf};
-use image::{ImageBuffer, Pixel, Rgba, DynamicImage};
 use walkdir::WalkDir;
+use std::path::{Path, PathBuf};
+use image::{ImageBuffer, Rgba};
+use crate::create_meta::{create_meta_metallic_map, create_meta_normal_map, create_meta_texture};
 
 fn main() {
-    println!("🚀 Запуск подготовки текстур для Unity URP...");
+    println!("🚀 Запуск ...");
 
     let current_dir = std::env::current_dir().expect("Не удалось получить текущую папку");
     println!("📁 Рабочая папка: {}", current_dir.display());
@@ -26,13 +29,15 @@ fn main() {
         let path = entry.path();
         if path.is_file() {
             if let Some(ext) = path.extension() {
+                // только png файлы
                 if ext == "png" {
                     if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
                         let name_lower = name.to_lowercase();
-                        if name_lower.ends_with("basecolor") ||
-                            name_lower.ends_with("normal") ||
-                            name_lower.ends_with("metallic") ||  // Обрати внимание на опечатку в твоём описании
-                            name_lower.ends_with("roughness") {
+                        if name_lower.ends_with("basecolor")
+                            || name_lower.ends_with("normal")
+                            || name_lower.ends_with("metallic")
+                            || name_lower.ends_with("roughness")
+                        {
                             files.push(path.to_path_buf());
                         }
                     }
@@ -42,21 +47,26 @@ fn main() {
     }
 
     if files.is_empty() {
-        println!("⚠️ Не найдено файлов текстур с суффиксами: BaseColor, Normal, Metallic, Roughness");
+        println!(
+            "⚠️ Не найдено файлов текстур с суффиксами: BaseColor, Normal, Metallic, Roughness"
+        );
         return;
     }
 
     println!("🔍 Найдено {} файлов текстур", files.len());
 
     // Группировка текстур по базовому имени
-    let mut texture_groups: std::collections::HashMap<String, TextureSet> = std::collections::HashMap::new();
+    let mut texture_groups: std::collections::HashMap<String, TextureSet> =
+        std::collections::HashMap::new();
 
     for file_path in files {
         let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
         let base_name = clean_base_name(file_stem);
         let suffix = detect_suffix(file_stem);
 
-        let entry = texture_groups.entry(base_name).or_insert(TextureSet::default());
+        let entry = texture_groups
+            .entry(base_name)
+            .or_insert(TextureSet::default());
         match suffix {
             Suffix::BaseColor => entry.base_color = Some(file_path),
             Suffix::Normal => entry.normal = Some(file_path),
@@ -90,8 +100,15 @@ fn main() {
         }
 
         // Создаём Metallic + Smoothness в альфа-канале
-        if let (Some(metalic_path), Some(roughness_path)) = (&texture_set.metallic, &texture_set.roughness) {
-            match create_metallic_smoothness_texture(metalic_path, roughness_path, &textures_dir, &base_name) {
+        if let (Some(metallic_path), Some(roughness_path)) =
+            (&texture_set.metallic, &texture_set.roughness)
+        {
+            match create_metallic_smoothness_texture(
+                metallic_path,
+                roughness_path,
+                &textures_dir,
+                &base_name,
+            ) {
                 Ok(path) => {
                     println!("  ✅ Metallic + Smoothness создана: {}", path.display());
                     // Отключаем sRGB и настраиваем альфа-канал
@@ -186,8 +203,11 @@ fn create_metallic_smoothness_texture(
     let (r_width, r_height) = roughness_gray.dimensions();
 
     if width != r_width || height != r_height {
-        return Err(format!("Размеры текстур не совпадают: Metallic {}x{}, Roughness {}x{}",
-                           width, height, r_width, r_height).into());
+        return Err(format!(
+            "Размеры текстур не совпадают: Metallic {}x{}, Roughness {}x{}",
+            width, height, r_width, r_height
+        )
+        .into());
     }
 
     // Создаём новое изображение RGBA
@@ -217,263 +237,4 @@ fn create_metallic_smoothness_texture(
     output.save(&output_path)?;
 
     Ok(output_path)
-}
-
-fn create_meta_texture(path: &Path, srgb: bool) {
-    let meta_path = path.with_extension("png.meta");
-    let meta_content = format!(
-        r#"fileFormatVersion: 2
-guid: {}
-TextureImporter:
-  internalIDToNameTable: []
-  externalObjects: {{}}
-  serializedVersion: 12
-  mipmaps:
-    mipMapMode: 0
-    enableMipMap: 1
-    sRGBTexture: {}
-    linearTexture: 0
-    fadeOut: 0
-    borderMipMap: 0
-    mipMapsPreserveCoverage: 0
-    alphaTestReferenceValue: 0.5
-    mipMapFadeDistanceStart: 1
-    mipMapFadeDistanceEnd: 3
-  bumpmap:
-    convertToNormalMap: 0
-    externalNormalMap: 0
-    heightScale: 0.25
-    normalMapFilter: 0
-  isReadable: 0
-  streamingMipmaps: 0
-  streamingMipmapsPriority: 0
-  vTOnly: 0
-  ignoreMasterTextureLimit: 0
-  grayScale: 0
-  alphaIsTransparency: 0
-  textureType: 0
-  textureShape: 1
-  singleChannelComponent: 0
-  flipbookRows: 1
-  flipbookColumns: 1
-  maxTextureSizeSet: 0
-  compressionQualitySet: 0
-  textureFormatSet: 0
-  ignorePngGamma: 0
-  applyGammaDecoding: 0
-  cookieLightType: 0
-  platformSettings:
-  - serializedVersion: 3
-    buildTarget: Standalone
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
-  - serializedVersion: 3
-    buildTarget: Android
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
-  spriteSheet:
-    serializedVersion: 2
-    sprites: []
-    outline: []
-    physicsShape: []
-    bones: []
-    spriteID: 5e97eb03825dee720800000000000000
-    internalID: 0
-    vertices: []
-    indices: 
-    edges: []
-    weights: []
-    secondaryTextures: []
-    nameFileIdTable: {{}}
-  spritePackingTag: 
-  pSDRemoveMatte: 0
-  pSDShowRemoveMatteOption: 0
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
-"#,
-        uuid::Uuid::new_v4().simple(),
-        if srgb { "1" } else { "0" }
-    );
-    fs::write(meta_path, meta_content).expect("Не удалось создать .meta файл");
-}
-
-fn create_meta_normal_map(path: &Path) {
-    let meta_path = path.with_extension("png.meta");
-    let meta_content = format!(
-        r#"fileFormatVersion: 2
-guid: {}
-TextureImporter:
-  internalIDToNameTable: []
-  externalObjects: {{}}
-  serializedVersion: 12
-  mipmaps:
-    mipMapMode: 0
-    enableMipMap: 1
-    sRGBTexture: 0
-    linearTexture: 0
-    fadeOut: 0
-    borderMipMap: 0
-    mipMapsPreserveCoverage: 0
-    alphaTestReferenceValue: 0.5
-    mipMapFadeDistanceStart: 1
-    mipMapFadeDistanceEnd: 3
-  bumpmap:
-    convertToNormalMap: 1
-    externalNormalMap: 0
-    heightScale: 0.25
-    normalMapFilter: 0
-  isReadable: 0
-  streamingMipmaps: 0
-  streamingMipmapsPriority: 0
-  vTOnly: 0
-  ignoreMasterTextureLimit: 0
-  grayScale: 0
-  alphaIsTransparency: 0
-  textureType: 1
-  textureShape: 1
-  singleChannelComponent: 0
-  flipbookRows: 1
-  flipbookColumns: 1
-  maxTextureSizeSet: 0
-  compressionQualitySet: 0
-  textureFormatSet: 0
-  ignorePngGamma: 0
-  applyGammaDecoding: 0
-  cookieLightType: 0
-  platformSettings:
-  - serializedVersion: 3
-    buildTarget: Standalone
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
-  spriteSheet:
-    serializedVersion: 2
-    sprites: []
-    outline: []
-    physicsShape: []
-    bones: []
-    spriteID: 5e97eb03825dee720800000000000000
-    internalID: 0
-    vertices: []
-    indices: 
-    edges: []
-    weights: []
-    secondaryTextures: []
-    nameFileIdTable: {{}}
-  spritePackingTag: 
-  pSDRemoveMatte: 0
-  pSDShowRemoveMatteOption: 0
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
-"#,
-        uuid::Uuid::new_v4().simple()
-    );
-    fs::write(meta_path, meta_content).expect("Не удалось создать .meta файл для нормал мап");
-}
-
-fn create_meta_metallic_map(path: &Path) {
-    let meta_path = path.with_extension("png.meta");
-    let meta_content = format!(
-        r#"fileFormatVersion: 2
-guid: {}
-TextureImporter:
-  internalIDToNameTable: []
-  externalObjects: {{}}
-  serializedVersion: 12
-  mipmaps:
-    mipMapMode: 0
-    enableMipMap: 1
-    sRGBTexture: 0
-    linearTexture: 1
-    fadeOut: 0
-    borderMipMap: 0
-    mipMapsPreserveCoverage: 0
-    alphaTestReferenceValue: 0.5
-    mipMapFadeDistanceStart: 1
-    mipMapFadeDistanceEnd: 3
-  bumpmap:
-    convertToNormalMap: 0
-    externalNormalMap: 0
-    heightScale: 0.25
-    normalMapFilter: 0
-  isReadable: 0
-  streamingMipmaps: 0
-  streamingMipmapsPriority: 0
-  vTOnly: 0
-  ignoreMasterTextureLimit: 0
-  grayScale: 0
-  alphaIsTransparency: 0
-  textureType: 0
-  textureShape: 1
-  singleChannelComponent: 0
-  flipbookRows: 1
-  flipbookColumns: 1
-  maxTextureSizeSet: 0
-  compressionQualitySet: 0
-  textureFormatSet: 0
-  ignorePngGamma: 0
-  applyGammaDecoding: 0
-  cookieLightType: 0
-  platformSettings:
-  - serializedVersion: 3
-    buildTarget: Standalone
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
-  spriteSheet:
-    serializedVersion: 2
-    sprites: []
-    outline: []
-    physicsShape: []
-    bones: []
-    spriteID: 5e97eb03825dee720800000000000000
-    internalID: 0
-    vertices: []
-    indices: 
-    edges: []
-    weights: []
-    secondaryTextures: []
-    nameFileIdTable: {{}}
-  spritePackingTag: 
-  pSDRemoveMatte: 0
-  pSDShowRemoveMatteOption: 0
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
-"#,
-        uuid::Uuid::new_v4().simple()
-    );
-    fs::write(meta_path, meta_content).expect("Не удалось создать .meta файл для metallic карты");
 }
