@@ -3,6 +3,7 @@ mod create_meta;
 use crate::create_meta::{create_meta_metallic_map, create_meta_normal_map, create_meta_texture};
 use image::{ImageBuffer, Rgba};
 use regex::Regex;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -57,8 +58,7 @@ fn main() {
     println!("🔍 Найдено {} файлов текстур", files.len());
 
     // Группировка текстур по базовому имени
-    let mut texture_groups: std::collections::HashMap<String, TextureSet> =
-        std::collections::HashMap::new();
+    let mut texture_groups: HashMap<String, TextureSet> = HashMap::new();
 
     for file_path in files {
         let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
@@ -75,6 +75,8 @@ fn main() {
             Suffix::Roughness => entry.roughness = Some(file_path),
         }
     }
+
+    dbg!(&texture_groups);
 
     // Обработка каждой группы
     for (base_name, texture_set) in texture_groups {
@@ -135,6 +137,7 @@ fn main() {
 }
 
 #[derive(Default)]
+#[derive(Debug)] // todo rm
 struct TextureSet {
     base_color: Option<PathBuf>,
     normal: Option<PathBuf>,
