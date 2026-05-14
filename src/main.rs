@@ -1,10 +1,11 @@
 mod create_meta;
 
-use std::fs;
-use walkdir::WalkDir;
-use std::path::{Path, PathBuf};
-use image::{ImageBuffer, Rgba};
 use crate::create_meta::{create_meta_metallic_map, create_meta_normal_map, create_meta_texture};
+use image::{ImageBuffer, Rgba};
+use regex::Regex;
+use std::fs;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 fn main() {
     println!("🚀 Запуск ...");
@@ -164,24 +165,9 @@ fn detect_suffix(filename: &str) -> Suffix {
 }
 
 fn clean_base_name(filename: &str) -> String {
-    // Удаляем _gameasset и другие суффиксы, оставляя только чистое имя
-    let cleaned = filename
-        .replace("_gameasset", "")
-        .replace("_GameAsset", "")
-        .replace("_gameAsset", "");
-
-    // Удаляем суффиксы типов текстур
-    let cleaned = cleaned
-        .replace("_BaseColor", "")
-        .replace("_basecolor", "")
-        .replace("_Normal", "")
-        .replace("_normal", "")
-        .replace("_Metalic", "")
-        .replace("_metalic", "")
-        .replace("_Roughness", "")
-        .replace("_roughness", "");
-
-    cleaned
+    // Удаляем _gameasset (в любом регистре) и _суффикс_типа (в любом регистре)
+    let re = Regex::new(r"(?i)_(gameasset|basecolor|normal|metalic|roughness)$").unwrap();
+    re.replace_all(filename, "").to_string()
 }
 
 fn create_metallic_smoothness_texture(

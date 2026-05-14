@@ -6,7 +6,8 @@ edition = "2024"
 [dependencies]
 image = "0.25.10"
 walkdir = "2.5.0"
-uuid = "1.23.1"
+uuid = { version = "1.23.1", features = ["v4"] }
+regex = "1.12.3"
 
 [build-dependencies]
 winres = "0.1.12"
