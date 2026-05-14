@@ -64,6 +64,7 @@ fn main() {
         let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
         let base_name = clean_base_name(file_stem);
         let suffix = detect_suffix(file_stem);
+        println!("base_name: {}", &base_name);
 
         let entry = texture_groups
             .entry(base_name)
@@ -165,9 +166,9 @@ fn detect_suffix(filename: &str) -> Suffix {
 }
 
 fn clean_base_name(filename: &str) -> String {
-    // Удаляем _gameasset (в любом регистре) и _суффикс_типа (в любом регистре)
-    let re = Regex::new(r"(?i)_(basecolor|normal|metallic|roughness)$").unwrap();
-    re.replace_all(filename, "").to_string()
+    let re = Regex::new(r"(?i)_(gameasset|basecolor|normal|metallic|roughness)").unwrap();
+    let cleaned = re.replace_all(filename, "");
+    cleaned.to_string()
 }
 
 fn create_metallic_smoothness_texture(
