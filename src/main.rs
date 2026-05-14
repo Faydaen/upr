@@ -76,8 +76,6 @@ fn main() {
         }
     }
 
-    dbg!(&texture_groups);
-
     // Обработка каждой группы
     for (base_name, texture_set) in texture_groups {
         println!("\n📦 Обработка: {}", base_name);
@@ -137,7 +135,6 @@ fn main() {
 }
 
 #[derive(Default)]
-#[derive(Debug)] // todo rm
 struct TextureSet {
     base_color: Option<PathBuf>,
     normal: Option<PathBuf>,
@@ -169,7 +166,7 @@ fn detect_suffix(filename: &str) -> Suffix {
 
 fn clean_base_name(filename: &str) -> String {
     // Удаляем _gameasset (в любом регистре) и _суффикс_типа (в любом регистре)
-    let re = Regex::new(r"(?i)_(gameasset|basecolor|normal|metalic|roughness)$").unwrap();
+    let re = Regex::new(r"(?i)_(basecolor|normal|metallic|roughness)$").unwrap();
     re.replace_all(filename, "").to_string()
 }
 
